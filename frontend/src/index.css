@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+@keyframes bounceTyping {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+.animate-bounceTyping {
+  animation: bounceTyping 1s infinite;
+}
+
+.delay-0 { animation-delay: 0s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-400 { animation-delay: 0.4s; }
