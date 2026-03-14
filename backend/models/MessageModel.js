@@ -1,4 +1,3 @@
-// models/MessageModel.js
 import mongoose from "mongoose";
 
 const MessageSchema = new mongoose.Schema(
@@ -14,22 +13,12 @@ const MessageSchema = new mongoose.Schema(
       required: true,
     },
     message: { type: String, default: "" },
-    image: {
-      type: String,
-      default: "",
-    },
+    image: { type: String, default: "" },
     audio: { type: String, default: "" },
-    // ✅ NEW: Read status tracking
-    isRead: {
-      type: Boolean,
-      default: false,
-    },
-    readAt: {
-      type: Date,
-      default: null,
-    },
+    isRead: { type: Boolean, default: false },
+    readAt: { type: Date, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Message = mongoose.model("Message", MessageSchema);

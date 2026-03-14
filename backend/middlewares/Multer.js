@@ -9,7 +9,6 @@ const Storage = multer.diskStorage({
   },
 });
 
-
 const fileFilter = (req, file, cb) => {
   if (
     file.mimetype.startsWith("image/") ||
@@ -20,5 +19,5 @@ const fileFilter = (req, file, cb) => {
     cb(new Error("Only image or audio files are allowed!"), false);
   }
 };
-// Fixed syntax: storage key must be lowercase
+
 export const Upload = multer({ storage: Storage, fileFilter });

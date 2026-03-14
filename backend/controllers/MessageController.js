@@ -1,11 +1,9 @@
-// controllers/MessageController.js
 import UploadOnCloudinary from "../config/Cloudinary.js";
 import Conversation from "../models/ConverSationModel.js";
 import Message from "../models/MessageModel.js";
 import fs from "fs/promises";
 import { io, getReceiverSocketId } from "../socket/Socket.js";
 
-// -------------------- SEND MESSAGE --------------------
 export const SendMessage = async (req, res) => {
   try {
     const sender = req.userId;
@@ -21,8 +19,6 @@ export const SendMessage = async (req, res) => {
 
     if (req.file) {
       try {
-        console.log("Uploading file to Cloudinary...");
-
         const isAudio =
           req.file.mimetype.startsWith("audio/") ||
           req.file.originalname.endsWith(".webm") ||
@@ -34,23 +30,19 @@ export const SendMessage = async (req, res) => {
 
         if (isAudio) {
           audio = uploadResult;
-          console.log("Uploaded audio URL:", audio);
         } else {
           image = uploadResult;
-          console.log("Uploaded image URL:", image);
         }
       } catch (uploadError) {
-        console.error("Cloudinary upload failed:", uploadError);
-        return res.status(500).json({
-          message: "File upload failed",
-          error: uploadError.message || uploadError,
-        });
-      } finally {
         if (req.file?.path) {
-          await fs
-            .unlink(req.file.path)
-            .catch((err) => console.error("Failed to delete temp file:", err));
+          await fs.unlink(req.file.path).catch(() => {});
         }
+        return res
+          .status(500)
+          .json({
+            message: "File upload failed",
+            error: uploadError.message || uploadError,
+          });
       }
     }
 
@@ -64,7 +56,7 @@ export const SendMessage = async (req, res) => {
       message: message || "",
       image: image || "",
       audio: audio || "",
-      isRead: false, // ✅ NEW: Mark as unread initially
+      isRead: false,
     });
 
     if (!conversation) {
@@ -102,7 +94,7 @@ export const SendMessage = async (req, res) => {
           message: newMessage.message,
           image: newMessage.image,
           audio: newMessage.audio,
-          isRead: newMessage.isRead, // ✅ NEW: Include read status
+          isRead: newMessage.isRead,
           createdAt: newMessage.createdAt || new Date(),
         },
         conversationData,
@@ -111,21 +103,28 @@ export const SendMessage = async (req, res) => {
       if (receiverSocketId) io.to(receiverSocketId).emit("newMessage", payload);
       if (senderSocketId && senderSocketId !== receiverSocketId)
         io.to(senderSocketId).emit("newMessage", payload);
-    } catch (emitErr) {
-      console.error("Socket emit error:", emitErr);
-    }
+    } catch (emitErr) {}
 
-    return res.status(201).json(newMessage);
-  } catch (error) {
-    console.error("SendMessage error:", error);
-    return res.status(500).json({
-      message: "Server error while sending message",
-      error: error.message || error,
+    return res.status(201).json({
+      _id: newMessage._id,
+      sender: newMessage.sender,
+      receiver: newMessage.receiver,
+      message: newMessage.message,
+      image: newMessage.image,
+      audio: newMessage.audio,
+      isRead: newMessage.isRead,
+      createdAt: newMessage.createdAt,
     });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({
+        message: "Server error while sending message",
+        error: error.message || error,
+      });
   }
 };
 
-// -------------------- GET MESSAGES --------------------
 export const GetMessages = async (req, res) => {
   try {
     const sender = req.userId;
@@ -137,38 +136,27 @@ export const GetMessages = async (req, res) => {
 
     if (!conversation) return res.status(200).json([]);
 
-    return res.status(200).json(conversation.messages);
+    return res.status(200).json(conversation.messages || []);
   } catch (error) {
-    console.error("GetMessages error:", error);
-    return res.status(500).json({
-      message: "Server error while fetching messages",
-      error: error.message || error,
-    });
+    return res
+      .status(500)
+      .json({
+        message: "Server error while fetching messages",
+        error: error.message || error,
+      });
   }
 };
 
-// ✅ NEW: Mark messages as read
 export const MarkMessagesAsRead = async (req, res) => {
   try {
     const currentUser = req.userId;
     const { senderId } = req.params;
 
-    // Mark all unread messages from sender to current user as read
     const result = await Message.updateMany(
-      {
-        sender: senderId,
-        receiver: currentUser,
-        isRead: false,
-      },
-      {
-        $set: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      }
+      { sender: senderId, receiver: currentUser, isRead: false },
+      { $set: { isRead: true, readAt: new Date() } },
     );
 
-    // Emit socket event to notify sender
     const senderSocketId = getReceiverSocketId(senderId);
     if (senderSocketId) {
       io.to(senderSocketId).emit("messagesRead", {
@@ -177,15 +165,15 @@ export const MarkMessagesAsRead = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      markedCount: result.modifiedCount,
-    });
+    return res
+      .status(200)
+      .json({ success: true, markedCount: result.modifiedCount });
   } catch (error) {
-    console.error("MarkMessagesAsRead error:", error);
-    return res.status(500).json({
-      message: "Server error while marking messages as read",
-      error: error.message || error,
-    });
+    return res
+      .status(500)
+      .json({
+        message: "Server error while marking messages as read",
+        error: error.message || error,
+      });
   }
 };

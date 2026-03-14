@@ -18,7 +18,6 @@ const ReceiverMessage = ({ image, message, audio, time }) => {
       <div className="flex justify-start m-1 px-1 sm:px-2" ref={scroll}>
         <div className="w-fit flex items-end max-w-[75%] sm:max-w-[70%] md:max-w-[60%]">
           <div className="bg-[#21C4D3] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg rounded-tl-none break-words flex flex-col gap-1 overflow-hidden">
-            {/* 🖼 Image message */}
             {image && (
               <img
                 onLoad={handleImageScroll}
@@ -28,8 +27,6 @@ const ReceiverMessage = ({ image, message, audio, time }) => {
                 alt="received"
               />
             )}
-
-            {/* 🎙 Audio message */}
             {audio && (
               <audio
                 controls
@@ -37,15 +34,11 @@ const ReceiverMessage = ({ image, message, audio, time }) => {
                 className="w-full max-w-[200px] sm:max-w-[250px] rounded-lg mt-1"
               />
             )}
-
-            {/* 💬 Text message */}
             {message && (
               <span className="leading-snug break-words text-sm sm:text-base">
                 {message}
               </span>
             )}
-
-            {/* 🕒 Time */}
             {time && (
               <span className="text-[9px] sm:text-[10px] text-gray-200 self-end">
                 {time}
@@ -55,7 +48,6 @@ const ReceiverMessage = ({ image, message, audio, time }) => {
         </div>
       </div>
 
-      {/* ✅ IMAGE PREVIEW MODAL - Responsive */}
       {previewImage && (
         <div
           className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn p-4"

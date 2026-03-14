@@ -9,7 +9,7 @@ import { setOtherUser } from "../redux/UserSlice";
 
 const NewContact = ({ onClose, afterAdd }) => {
   const dispatch = useDispatch();
-  const { currentUser, otherUsers } = useSelector((state) => state.user);
+  const { userData, otherUsers } = useSelector((state) => state.user);
 
   const [newContact, setNewContact] = useState({
     name: "",
@@ -32,28 +32,34 @@ const NewContact = ({ onClose, afterAdd }) => {
     if (!newContact.password.trim()) return alert("Please fill Password");
 
     try {
-      const res = await axios.post(`${ServerUrl}/api/auth/signup`, {
-        userName: newContact.name,
-        email: newContact.email,
-        password: newContact.password,
-      });
+      const res = await axios.post(
+        `${ServerUrl}/api/newcontact/create`,
+        {
+          name: newContact.name,
+          email: newContact.email,
+          password: newContact.password,
+        },
+        { withCredentials: true },
+      );
 
-      const userData = res.data?.user || res.data;
-      if (!userData) throw new Error("Invalid response from server");
+      const userData_res = res.data?.user || res.data;
+      if (!userData_res || !userData_res._id) {
+        throw new Error("Invalid response from server");
+      }
 
-      if (userData._id === currentUser?._id) {
+      if (userData_res._id === userData?._id) {
         alert("You cannot add yourself as a contact!");
         return;
       }
 
-      const cleanedName = userData.userName
-        ? userData.userName.replace(/\s*\(.*?\)\s*$/, "")
+      const cleanedName = userData_res.userName
+        ? userData_res.userName.replace(/\s*\(.*?\)\s*$/, "")
         : newContact.name;
 
       const userToAdd = {
-        _id: userData._id,
+        _id: userData_res._id,
         userName: cleanedName,
-        image: userData.image || "",
+        image: userData_res.image || "",
       };
 
       if (otherUsers.some((u) => u._id === userToAdd._id)) {
@@ -61,7 +67,6 @@ const NewContact = ({ onClose, afterAdd }) => {
         return;
       }
 
-      // ✅ Add new user to Redux at the top of the list
       dispatch(setOtherUser([userToAdd, ...otherUsers]));
       setNewContact({ name: "", email: "", password: "" });
       onClose();
@@ -78,7 +83,7 @@ const NewContact = ({ onClose, afterAdd }) => {
     setValue,
     placeholder,
     focusKey,
-    type = "text"
+    type = "text",
   ) => (
     <div className="relative w-full flex items-center">
       <div className="flex-shrink-0 w-10 sm:w-12 flex justify-center text-xl sm:text-2xl">
@@ -143,14 +148,14 @@ const NewContact = ({ onClose, afterAdd }) => {
           newContact.name,
           (val) => setNewContact({ ...newContact, name: val }),
           "Name",
-          "name"
+          "name",
         )}
         {inputField(
           <MdOutlineMail className="text-[rgb(33,196,211)]" />,
           newContact.email,
           (val) => setNewContact({ ...newContact, email: val }),
           "Email",
-          "email"
+          "email",
         )}
         {inputField(
           <CiLock className="text-[#21C4D3]" />,
@@ -158,7 +163,7 @@ const NewContact = ({ onClose, afterAdd }) => {
           (val) => setNewContact({ ...newContact, password: val }),
           "Password",
           "password",
-          showPassword ? "text" : "password"
+          showPassword ? "text" : "password",
         )}
       </div>
 

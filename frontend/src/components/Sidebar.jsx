@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useRef, useEffect, forwardRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import dp from "../assets/dp.webp";
 import { FiSearch, FiEdit, FiUser, FiLogOut } from "react-icons/fi";
@@ -9,9 +9,11 @@ import { ServerUrl } from "../main";
 import { setOtherUser, setSelectedUser, setUserData } from "../redux/UserSlice";
 import NewContact from "./NewContact";
 import { MdDeleteOutline } from "react-icons/md";
-import logo from "../assets/logo.png"
+import { BsPinAngleFill, BsPinAngle } from "react-icons/bs";
+import logo from "../assets/logo.png";
+import StatusList from "./StatusList";
 
-const Sidebar = ({ messagebarRef }) => {
+const Sidebar = forwardRef(({ messagebarRef }, ref) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -31,55 +33,93 @@ const Sidebar = ({ messagebarRef }) => {
   const [unreadCounts, setUnreadCounts] = useState({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [pinnedChats, setPinnedChats] = useState([]);
+  const [contextMenu, setContextMenu] = useState({
+    show: false,
+    x: 0,
+    y: 0,
+    userId: null,
+  });
 
-  const sidebarRef = useRef(null);
+  const sidebarRef = ref || useRef(null);
+  const contextMenuRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("pinnedChats") || "[]");
+      setPinnedChats(saved);
+    } catch (e) {
+      setPinnedChats([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("pinnedChats", JSON.stringify(pinnedChats));
+  }, [pinnedChats]);
+
+  const togglePin = (userId) => {
+    setPinnedChats((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
+    );
+    setContextMenu({ show: false, x: 0, y: 0, userId: null });
+  };
+
+  const handleContextMenu = (e, userId) => {
+    e.preventDefault();
+    const rect = sidebarRef.current.getBoundingClientRect();
+    const menuWidth = 160;
+    const menuHeight = 56;
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    if (x + menuWidth > rect.width) x = rect.width - menuWidth - 4;
+    if (y + menuHeight > rect.height) y = rect.height - menuHeight - 4;
+    setContextMenu({ show: true, x, y, userId });
+  };
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (
+        contextMenuRef.current &&
+        !contextMenuRef.current.contains(e.target)
+      ) {
+        setContextMenu({ show: false, x: 0, y: 0, userId: null });
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   useEffect(() => {
     const fetchUsersIfEmpty = async () => {
-      // Wait for userData
-      if (!userData?._id) {
-        console.log("⏳ Sidebar: Waiting for userData");
-        return;
-      }
-
-      // Fetch if empty
+      if (!userData?._id) return;
       if (!Array.isArray(otherUsers) || otherUsers.length === 0) {
-        console.log("🔄 Sidebar: Fetching users (empty)");
         try {
           const res = await axios.get(`${ServerUrl}/api/user/others`, {
             withCredentials: true,
           });
-          console.log("✅ Sidebar: Users loaded:", res.data.length);
           dispatch(setOtherUser(res.data));
-        } catch (err) {
-          console.error("❌ Sidebar: Failed to fetch", err);
-        }
-      } else {
-        console.log("✅ Sidebar: Users already present:", otherUsers.length);
+        } catch (err) {}
       }
     };
-
     fetchUsersIfEmpty();
   }, [userData?._id, otherUsers.length, dispatch]);
 
-  // ✅ Format date/time for display
   const formatTime = (timestamp) => {
     if (!timestamp) return "";
     const date = new Date(timestamp);
     const now = new Date();
-
     const sameDay =
       date.getDate() === now.getDate() &&
       date.getMonth() === now.getMonth() &&
       date.getFullYear() === now.getFullYear();
-
     const yesterday = new Date();
     yesterday.setDate(now.getDate() - 1);
     const isYesterday =
       date.getDate() === yesterday.getDate() &&
       date.getMonth() === yesterday.getMonth() &&
       date.getFullYear() === yesterday.getFullYear();
-
     const formatWithAMPM = (d) =>
       d
         .toLocaleTimeString([], {
@@ -89,7 +129,6 @@ const Sidebar = ({ messagebarRef }) => {
         })
         .replace("am", "AM")
         .replace("pm", "PM");
-
     if (sameDay) return formatWithAMPM(date);
     if (isYesterday) return "Yesterday";
     return date.toLocaleDateString("en-GB", {
@@ -99,30 +138,6 @@ const Sidebar = ({ messagebarRef }) => {
     });
   };
 
-  // ✅ Restore popup state
-  useEffect(() => {
-    try {
-      const savedNewChat = JSON.parse(localStorage.getItem("showNewChat"));
-      const savedAddContact = JSON.parse(
-        localStorage.getItem("showAddContactForm")
-      );
-      if (savedNewChat) setShowNewChat(true);
-      if (savedAddContact) setShowAddContactForm(true);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("showNewChat", JSON.stringify(showNewChat));
-  }, [showNewChat]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "showAddContactForm",
-      JSON.stringify(showAddContactForm)
-    );
-  }, [showAddContactForm]);
-
-  // ✅ Load conversations
   useEffect(() => {
     const fetchConversations = async () => {
       try {
@@ -130,33 +145,25 @@ const Sidebar = ({ messagebarRef }) => {
           withCredentials: true,
         });
         if (Array.isArray(res.data)) setConversations(res.data);
-      } catch (error) {
-        console.error("Error fetching conversations:", error);
-      }
+      } catch (error) {}
     };
     fetchConversations();
   }, []);
 
-  // ✅ SOCKET.IO — Handle new message + unread count + reorder
   useEffect(() => {
     if (!socket || !userData?._id) return;
-
     const handleNewMessage = (payload) => {
       const { messageData, conversationData } = payload || {};
       if (!messageData || !conversationData) return;
-
       const { sender, receiver, message, createdAt } = messageData;
       const targetId = sender === userData._id ? receiver : sender;
-
-      // ⏫ Move chat to top
       setConversations((prev) => {
         let updated = [...prev];
         const index = updated.findIndex((c) =>
           c.participants?.some(
-            (p) => p._id?.toString() === targetId?.toString()
-          )
+            (p) => p._id?.toString() === targetId?.toString(),
+          ),
         );
-
         const newEntry = {
           participants: [{ _id: targetId }],
           lastMessage:
@@ -166,7 +173,6 @@ const Sidebar = ({ messagebarRef }) => {
             createdAt ||
             new Date().toISOString(),
         };
-
         if (index !== -1) {
           updated[index] = { ...updated[index], ...newEntry };
           const [moved] = updated.splice(index, 1);
@@ -176,8 +182,6 @@ const Sidebar = ({ messagebarRef }) => {
         }
         return updated;
       });
-
-      // 🔢 Increase unread count (if this chat isn't open)
       if (selectedUser?._id !== targetId && sender !== userData._id) {
         setUnreadCounts((prev) => ({
           ...prev,
@@ -185,43 +189,43 @@ const Sidebar = ({ messagebarRef }) => {
         }));
       }
     };
-
     socket.on("newMessage", handleNewMessage);
     return () => socket.off("newMessage", handleNewMessage);
   }, [socket, userData, selectedUser]);
 
-  // ✅ Reset unread when user opens chat
   useEffect(() => {
     if (selectedUser?._id) {
-      setUnreadCounts((prev) => ({
-        ...prev,
-        [selectedUser._id]: 0,
-      }));
+      setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
     }
   }, [selectedUser]);
 
-  // ✅ Merge users with conversations
   const mergedUsers = otherUsers
     .map((user) => {
       const convo = conversations.find((c) =>
-        c.participants?.some((p) => p._id?.toString() === user._id?.toString())
+        c.participants?.some((p) => p._id?.toString() === user._id?.toString()),
       );
       return {
         ...user,
         lastMessage: convo?.lastMessage || "No message yet",
         updatedAt: convo?.updatedAt || "2000-01-01",
         unread: unreadCounts[user._id] || 0,
+        isPinned: pinnedChats.includes(user._id),
       };
     })
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
     .filter((u) => u.userName?.toLowerCase().includes(search.toLowerCase()));
 
-  // ✅ NEW: Filtered users for popup
+  const pinnedUsers = mergedUsers
+    .filter((u) => u.isPinned)
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  const unpinnedUsers = mergedUsers
+    .filter((u) => !u.isPinned)
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  const sortedUsers = [...pinnedUsers, ...unpinnedUsers];
+
   const filteredPopupUsers = otherUsers.filter((u) =>
-    u.userName?.toLowerCase().includes(popupSearch.toLowerCase())
+    u.userName?.toLowerCase().includes(popupSearch.toLowerCase()),
   );
 
-  // ✅ Logout
   const handleLogout = async () => {
     try {
       if (socket) socket.emit("logout", userData._id);
@@ -231,70 +235,55 @@ const Sidebar = ({ messagebarRef }) => {
       dispatch(setUserData(null));
       dispatch(setOtherUser([]));
       navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+    } catch (error) {}
   };
 
-  // ✅ Deselect user on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(e.target) &&
-        messagebarRef?.current &&
-        !messagebarRef.current.contains(e.target)
-      ) {
-        dispatch(setSelectedUser(null));
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dispatch, messagebarRef]);
-
-  // ✅ User Item with unread badge
   const renderUserItem = (user, onClickHandler, isPopup = false) => {
     const isOnline = onlineUsers.includes(user._id);
     return (
       <div
         key={user._id}
-        className="flex items-center p-3 hover:bg-[#d2f3fa] cursor-pointer transition rounded-lg mx-2 my-1 justify-between"
+        className="flex items-center px-2 sm:px-3 py-2 sm:py-2.5 hover:bg-[#d2f3fa] cursor-pointer transition rounded-lg mx-1.5 sm:mx-2 my-0.5 sm:my-1 justify-between relative"
+        onContextMenu={(e) => !isPopup && handleContextMenu(e, user._id)}
       >
-        <div className="flex items-center flex-1" onClick={onClickHandler}>
-          <div className="relative">
+        <div
+          className="flex items-center flex-1 min-w-0"
+          onClick={onClickHandler}
+        >
+          <div className="relative flex-shrink-0">
             <img
               src={user.image || dp}
               alt={user.userName}
-              className="w-12 h-12 rounded-full object-cover border-2"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-gray-100"
             />
             <span
-              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+              className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-white ${
                 isOnline ? "bg-green-500" : "bg-gray-400"
               }`}
-            ></span>
+            />
           </div>
 
-          <div className="ml-3 flex-1 overflow-hidden">
-            <h2 className="text-gray-800 font-medium truncate">
-              {user.userName}
-            </h2>
-
+          <div className="ml-2 sm:ml-3 flex-1 min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-gray-800 font-medium text-sm sm:text-base truncate">
+                {user.userName}
+              </h2>
+              {!isPopup && user.isPinned && (
+                <BsPinAngleFill className="text-[#21C4D3] text-xs flex-shrink-0" />
+              )}
+            </div>
             {!isPopup && (
-              <div className="flex justify-between items-start">
-                <p
-                  className="text-gray-500 text-sm flex-1 overflow-hidden whitespace-nowrap text-ellipsis max-w-[140px] sm:max-w-[180px] md:max-w-[200px] lg:max-w-[220px]"
-                  title={user.lastMessage}
-                >
+              <div className="flex justify-between items-center mt-0.5">
+                <p className="text-gray-500 text-xs sm:text-sm truncate flex-1 mr-2 max-w-[120px] sm:max-w-[160px] md:max-w-[180px]">
                   {user.lastMessage}
                 </p>
-
-                <div className="flex flex-col items-center ml-2">
+                <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
                   {user.unread > 0 && (
-                    <span className="bg-[#21C4D3] text-white text-[10px] font-semibold rounded-full px-1.5 py-0.5 min-w-[20px] text-center mb-1">
+                    <span className="bg-[#21C4D3] text-white text-[10px] font-semibold rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
                       {user.unread}
                     </span>
                   )}
-                  <span className="text-gray-400 text-xs">
+                  <span className="text-gray-400 text-[10px] sm:text-xs whitespace-nowrap">
                     {user.updatedAt !== "2000-01-01"
                       ? formatTime(user.updatedAt)
                       : ""}
@@ -307,8 +296,8 @@ const Sidebar = ({ messagebarRef }) => {
 
         {isPopup && (
           <MdDeleteOutline
-            size={22}
-            className="text-red-500 hover:text-red-700 cursor-pointer ml-2"
+            size={20}
+            className="text-red-500 hover:text-red-700 cursor-pointer ml-2 flex-shrink-0"
             onClick={(e) => {
               e.stopPropagation();
               setDeleteTarget(user);
@@ -325,102 +314,120 @@ const Sidebar = ({ messagebarRef }) => {
       ref={sidebarRef}
       className={`w-full h-full lg:w-[30%] bg-white border-r border-[#189AA7] flex flex-col ${
         selectedUser ? "hidden lg:flex" : "flex"
-      } transition-all duration-300 relative`}
+      } transition-all duration-300 relative overflow-hidden`}
     >
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-5 py-[18px] bg-[#21C4D3] text-white shadow-md">
+      <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-[18px] bg-[#21C4D3] text-white shadow-md flex-shrink-0">
         <div className="flex items-center gap-2">
           <img
             src={logo}
             alt="Talkies Logo"
-            className="w-8 h-8 rounded-full"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
           />
-          <h1 className="text-xl font-bold">Talkies</h1>
+          <h1 className="text-lg sm:text-xl font-bold">Talkies</h1>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <FiEdit
-            size={20}
-            className="cursor-pointer hover:text-[#189AA7]"
+            size={18}
+            className="cursor-pointer hover:text-[#d4f7fb] transition-colors"
             onClick={() => setShowNewChat(true)}
           />
           <button
             onClick={() => navigate("/profile")}
-            className="hover:text-[#189AA7]"
+            className="hover:text-[#d4f7fb] transition-colors"
           >
-            <FiUser size={20} />
+            <FiUser size={18} />
           </button>
           <button
             onClick={handleLogout}
-            className="text-red-500 hover:text-red-600"
+            className="text-red-300 hover:text-red-200 transition-colors"
           >
-            <FiLogOut size={20} />
+            <FiLogOut size={18} />
           </button>
         </div>
       </div>
 
-      {/* SEARCH */}
-      <div className="p-4 bg-[#e8fdff]">
-        <div className="flex items-center bg-white rounded-full px-4 py-3 shadow-sm">
-          <FiSearch className="text-[#21C4D3] text-lg mr-3" />
+      <div className="px-3 sm:px-4 py-2.5 sm:py-4 bg-[#e8fdff] flex-shrink-0">
+        <div className="flex items-center bg-white border border-[#21C4D3] rounded-full px-3 sm:px-4 py-2 sm:py-3 gap-2">
+          <FiSearch className="text-[#21C4D3] text-base sm:text-lg flex-shrink-0" />
           <input
             type="text"
             placeholder="Search chats here"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full outline-none text-sm text-gray-700 bg-transparent"
+            className="w-full outline-none text-xs sm:text-sm text-gray-500 bg-transparent"
           />
         </div>
       </div>
 
-      {/* CONTACT LIST */}
-      <div className="flex-1 overflow-y-auto bg-[#e8fdff] h-full">
-        {mergedUsers.length > 0 ? (
-          mergedUsers.map((user) =>
-            renderUserItem(user, () => dispatch(setSelectedUser(user)))
+      <div className="flex-1 overflow-y-auto bg-[#e8fdff]">
+        <StatusList />
+        {sortedUsers.length > 0 ? (
+          sortedUsers.map((user) =>
+            renderUserItem(user, () => dispatch(setSelectedUser(user))),
           )
         ) : (
-          <p className="text-gray-500 text-center mt-5">No results found</p>
+          <p className="text-gray-400 text-sm text-center mt-6">
+            No results found
+          </p>
         )}
       </div>
 
-      {/* NEW CHAT POPUP */}
+      {contextMenu.show && (
+        <div
+          ref={contextMenuRef}
+          className="absolute bg-white shadow-lg rounded-lg py-1.5 z-50 min-w-[150px] border border-gray-200"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => togglePin(contextMenu.userId)}
+            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700 text-sm"
+          >
+            {pinnedChats.includes(contextMenu.userId) ? (
+              <>
+                <BsPinAngle className="text-[#21C4D3]" /> Unpin Chat
+              </>
+            ) : (
+              <>
+                <BsPinAngleFill className="text-[#21C4D3]" /> Pin Chat
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {showNewChat && (
-        <div className="absolute inset-0 z-50 flex flex-col bg-[#e8fdff] shadow-lg rounded-r-xl">
-          <div className="flex items-center justify-between p-4 bg-[#21C4D3] text-white shadow-md">
-            <h2 className="text-lg font-semibold">Contacts</h2>
+        <div className="absolute inset-0 z-50 flex flex-col bg-[#e8fdff]">
+          <div className="flex items-center justify-between px-3 sm:px-4 py-3 sm:py-4 bg-[#21C4D3] text-white shadow-md flex-shrink-0">
+            <h2 className="text-base sm:text-lg font-semibold">Contacts</h2>
             <button
-              onClick={() => {
-                setShowNewChat(false);
-                localStorage.removeItem("showNewChat");
-              }}
-              className="text-white text-xl hover:text-gray-200"
+              onClick={() => setShowNewChat(false)}
+              className="text-white text-xl hover:text-gray-200 transition-colors p-1"
             >
               ✕
             </button>
           </div>
 
-          <div className="flex flex-col p-3 bg-[#e8fdff] gap-3">
+          <div className="flex flex-col px-2 sm:px-3 pt-2 sm:pt-3 bg-[#e8fdff] gap-2 sm:gap-3 flex-shrink-0">
             <button
               onClick={() => setShowAddContactForm(true)}
-              className="flex items-center gap-2 bg-[#e8fdff] text-black px-4 py-2 rounded-lg mx-2 my-1 hover:bg-[#d2f3fa]"
+              className="flex items-center gap-2 bg-[#e8fdff] text-black px-3 sm:px-4 py-2 rounded-lg mx-1 hover:bg-[#d2f3fa] transition-colors text-sm sm:text-base"
             >
-              <IoIosPersonAdd className="bg-white text-[#21C4D3] p-1.5 rounded-full text-[30px]" />
+              <IoIosPersonAdd className="bg-white text-[#21C4D3] p-1.5 rounded-full text-[26px] sm:text-[30px]" />
               Add Contact
             </button>
-            <div className="flex items-center bg-white rounded-full px-3 py-2 shadow-sm">
-              <FiSearch className="text-[#21C4D3] text-sm mr-2" />
+            <div className="flex items-center bg-white rounded-full px-3 py-2 shadow-sm mx-1">
+              <FiSearch className="text-[#21C4D3] text-sm mr-2 flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Search contacts"
                 value={popupSearch}
                 onChange={(e) => setPopupSearch(e.target.value)}
-                className="w-full outline-none text-sm text-gray-700 bg-transparent"
+                className="w-full outline-none text-xs sm:text-sm text-gray-700 bg-transparent"
               />
             </div>
           </div>
 
-          {/* ✅ NEW: Show "No results found" when filtered list is empty */}
-          <div className="flex-1 overflow-y-auto bg-[#e8fdff] h-full">
+          <div className="flex-1 overflow-y-auto bg-[#e8fdff]">
             {filteredPopupUsers.length > 0 ? (
               filteredPopupUsers.map((user) =>
                 renderUserItem(
@@ -428,13 +435,14 @@ const Sidebar = ({ messagebarRef }) => {
                   () => {
                     dispatch(setSelectedUser(user));
                     setShowNewChat(false);
-                    localStorage.removeItem("showNewChat");
                   },
-                  true
-                )
+                  true,
+                ),
               )
             ) : (
-              <p className="text-gray-500 text-center mt-5">No results found</p>
+              <p className="text-gray-400 text-sm text-center mt-6">
+                No results found
+              </p>
             )}
           </div>
         </div>
@@ -450,27 +458,26 @@ const Sidebar = ({ messagebarRef }) => {
         />
       )}
 
-      {/* DELETE MODAL */}
       {showDeleteModal && deleteTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-sm text-center">
-            <h2 className="text-lg font-semibold text-gray-800">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 w-full max-w-[320px] sm:max-w-sm text-center">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-800">
               Delete Contact
             </h2>
-            <p className="text-gray-600 mt-2">
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">
               Are you sure you want to delete{" "}
               <span className="font-medium text-black">
                 {deleteTarget.userName}
               </span>
               ?
             </p>
-            <div className="flex justify-center gap-4 mt-6">
+            <div className="flex justify-center gap-3 sm:gap-4 mt-5 sm:mt-6">
               <button
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeleteTarget(null);
                 }}
-                className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-100"
+                className="px-4 sm:px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 text-sm sm:text-base transition-colors"
               >
                 Cancel
               </button>
@@ -479,22 +486,22 @@ const Sidebar = ({ messagebarRef }) => {
                   try {
                     await axios.delete(
                       `${ServerUrl}/api/newcontact/${deleteTarget._id}`,
-                      { withCredentials: true }
+                      { withCredentials: true },
                     );
                     dispatch(
                       setOtherUser(
-                        otherUsers.filter((u) => u._id !== deleteTarget._id)
-                      )
+                        otherUsers.filter((u) => u._id !== deleteTarget._id),
+                      ),
                     );
                     setShowDeleteModal(false);
                     setDeleteTarget(null);
                   } catch (err) {
                     alert(
-                      err.response?.data?.message || "Failed to delete contact"
+                      err.response?.data?.message || "Failed to delete contact",
                     );
                   }
                 }}
-                className="px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+                className="px-4 sm:px-5 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-sm sm:text-base transition-colors"
               >
                 Delete
               </button>
@@ -504,6 +511,7 @@ const Sidebar = ({ messagebarRef }) => {
       )}
     </div>
   );
-};
+});
 
+Sidebar.displayName = "Sidebar";
 export default Sidebar;

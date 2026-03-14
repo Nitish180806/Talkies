@@ -1,4 +1,3 @@
-// customHooks/getCurrentUser.jsx
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
@@ -11,39 +10,21 @@ const useCurrentUser = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      // ✅ Skip if already loaded
-      if (userData?._id) {
-        console.log("✅ User data already exists");
-        return;
-      }
+      if (userData?._id) return;
 
       try {
-        console.log("🔄 Fetching current user...");
-
         const res = await axios.get(`${ServerUrl}/api/user/current`, {
           withCredentials: true,
         });
-
-        // ✅ FIX: Backend returns user directly (not wrapped)
-        console.log("📦 API Response:", res.data);
-
-        if (!res.data || !res.data._id) {
-          console.error("❌ Invalid user data:", res.data);
-          return;
-        }
-
-        console.log("✅ Current user fetched:", res.data);
-        dispatch(setUserData(res.data)); // ✅ Use res.data directly
+        if (!res.data || !res.data._id) return;
+        dispatch(setUserData(res.data));
       } catch (error) {
-        console.error(
-          "❌ Fetch User Error:",
-          error.response?.data || error.message
-        );
+        // silently fail — user not logged in
       }
     };
 
     fetchUser();
-  }, [dispatch]); // ✅ Run only once
+  }, [dispatch]);
 };
 
 export default useCurrentUser;

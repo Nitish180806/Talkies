@@ -1,5 +1,4 @@
-// components/Messagebar.jsx - FIXED VERSION
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, forwardRef } from "react";
 import { IoIosArrowRoundBack } from "react-icons/io";
 import dp from "../assets/dp.webp";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,9 +16,9 @@ import { useNavigate } from "react-router-dom";
 import "../Messagebar.css";
 import logo from "../assets/logo.png";
 
-const Messagebar = ({ sidebarRef }) => {
+const Messagebar = forwardRef(({ sidebarRef }, ref) => {
   const { selectedUser, userData, socket, onlineUsers } = useSelector(
-    (state) => state.user
+    (state) => state.user,
   );
   const { messages } = useSelector((state) => state.message);
   const dispatch = useDispatch();
@@ -35,10 +34,10 @@ const Messagebar = ({ sidebarRef }) => {
   const [audioBlob, setAudioBlob] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [otherRecording, setOtherRecording] = useState(false);
-  const audioChunks = useRef([]);
 
+  const audioChunks = useRef([]);
   const currentAudioRef = useRef(null);
-  const messagebarRef = useRef(null);
+  const messagebarRef = ref || useRef(null);
   const emojiPickerRef = useRef(null);
   const image = useRef();
   const messagesContainerRef = useRef(null);
@@ -63,7 +62,7 @@ const Messagebar = ({ sidebarRef }) => {
     if (!selectedUser) return;
     localStorage.setItem(
       "scroll_" + selectedUser._id,
-      messagesContainerRef.current.scrollTop
+      messagesContainerRef.current.scrollTop,
     );
   };
 
@@ -72,7 +71,6 @@ const Messagebar = ({ sidebarRef }) => {
     const el = messagesContainerRef.current;
     const distanceFromBottom =
       el.scrollHeight - (el.scrollTop + el.clientHeight);
-
     if (distanceFromBottom < 120) {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -108,14 +106,13 @@ const Messagebar = ({ sidebarRef }) => {
       document.removeEventListener("mousedown", handleClickOutsideEmoji);
   }, [showPicker]);
 
-  // ✅ Fetch messages and mark as read
   useEffect(() => {
     const fetchMessages = async () => {
       if (!selectedUser) return;
       try {
         const res = await axios.get(
           `${ServerUrl}/api/message/get/${selectedUser._id}`,
-          { withCredentials: true }
+          { withCredentials: true },
         );
         const serializableMessages = res.data.map((m) => ({
           ...m,
@@ -123,12 +120,10 @@ const Messagebar = ({ sidebarRef }) => {
         }));
         dispatch(setMessages(serializableMessages));
         scrollToBottomInstant();
-
-        // ✅ Mark messages as read when chat opens
         await axios.put(
           `${ServerUrl}/api/message/read/${selectedUser._id}`,
           {},
-          { withCredentials: true }
+          { withCredentials: true },
         );
       } catch (error) {
         dispatch(setMessages([]));
@@ -183,7 +178,6 @@ const Messagebar = ({ sidebarRef }) => {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
-
       if (socket && selectedUser)
         socket.emit("voiceRecording", {
           receiverId: selectedUser._id,
@@ -202,28 +196,22 @@ const Messagebar = ({ sidebarRef }) => {
         formData.append("message", input);
         if (backendImage) formData.append("file", backendImage);
       }
-
       const res = await axios.post(
         `${ServerUrl}/api/message/send/${selectedUser._id}`,
         formData,
-        { withCredentials: true }
+        { withCredentials: true },
       );
-
       const newMessage = {
         ...res.data,
         createdAt: res.data?.createdAt
           ? new Date(res.data.createdAt).toISOString()
           : new Date().toISOString(),
       };
-
       dispatch(addMessage(newMessage));
-      dispatch(setMessages([...messages, newMessage]));
-
       setInput("");
       setFrontendImage("");
       setBackendImage(null);
       setAudioBlob(null);
-
       if (socket && selectedUser)
         socket.emit("typing", {
           receiverId: selectedUser._id,
@@ -262,56 +250,46 @@ const Messagebar = ({ sidebarRef }) => {
     image.current.value = null;
   };
 
-  // ✅ FIXED: Mark messages as read when new message arrives in active chat
   useEffect(() => {
     if (!socket) return;
-
     const handleNewMessage = async (payload) => {
       const incoming = payload?.messageData ? payload.messageData : payload;
-      incoming.createdAt = new Date().toISOString();
+      incoming.createdAt = incoming.createdAt
+        ? new Date(incoming.createdAt).toISOString()
+        : new Date().toISOString();
+      if (incoming.sender === userData?._id) return;
       dispatch(addMessage(incoming));
-
-      // ✅ NEW: If message is from selectedUser and we're in the chat, mark as read immediately
       if (selectedUser && incoming.sender === selectedUser._id) {
         try {
           await axios.put(
             `${ServerUrl}/api/message/read/${selectedUser._id}`,
             {},
-            { withCredentials: true }
+            { withCredentials: true },
           );
-        } catch (error) {
-          console.error("Failed to mark as read:", error);
-        }
+        } catch (error) {}
       }
     };
-
     const handleTyping = ({ senderId, isTyping }) => {
       if (selectedUser && senderId === selectedUser._id) setIsTyping(isTyping);
     };
-
     const handleVoiceRecording = ({ senderId, isRecording }) => {
       if (selectedUser && senderId === selectedUser._id)
         setOtherRecording(isRecording);
     };
-
-    // ✅ Handle read receipts
     const handleMessagesRead = ({ readBy }) => {
       if (selectedUser && readBy === selectedUser._id) {
-        // Update local messages to mark as read
         const updatedMessages = messages.map((msg) =>
           msg.sender === userData._id && msg.receiver === selectedUser._id
             ? { ...msg, isRead: true, readAt: new Date().toISOString() }
-            : msg
+            : msg,
         );
         dispatch(setMessages(updatedMessages));
       }
     };
-
     socket.on("newMessage", handleNewMessage);
     socket.on("typing", handleTyping);
     socket.on("voiceRecording", handleVoiceRecording);
     socket.on("messagesRead", handleMessagesRead);
-
     return () => {
       socket.off("newMessage", handleNewMessage);
       socket.off("typing", handleTyping);
@@ -323,9 +301,7 @@ const Messagebar = ({ sidebarRef }) => {
   const handleImagePreview = (url) => setPreviewImage(url);
 
   const handleHeaderClick = () => {
-    if (selectedUser?._id) {
-      navigate(`/userinfo/${selectedUser._id}`);
-    }
+    if (selectedUser?._id) navigate(`/userinfo/${selectedUser._id}`);
   };
 
   return (
@@ -337,15 +313,14 @@ const Messagebar = ({ sidebarRef }) => {
     >
       {selectedUser ? (
         <div className="flex flex-col h-full relative">
-          {/* Header */}
-          <div className="w-full h-[68px] flex items-center justify-between px-4 bg-[#21C4D3] text-white shadow-md">
+          <div className="w-full flex-shrink-0 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-4 bg-[#21C4D3] text-white shadow-md">
             <div
-              className="flex items-center space-x-2 cursor-pointer flex-1"
+              className="flex items-center gap-2 sm:gap-3 cursor-pointer flex-1 min-w-0"
               onClick={handleHeaderClick}
             >
               <IoIosArrowRoundBack
-                size={28}
-                className="cursor-pointer lg:hidden"
+                size={26}
+                className="cursor-pointer lg:hidden flex-shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   dispatch(setSelectedUser(null));
@@ -354,19 +329,19 @@ const Messagebar = ({ sidebarRef }) => {
               <img
                 src={selectedUser?.image || dp}
                 alt="Profile"
-                className="w-10 h-10 rounded-full object-cover border-2 border-white"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-white flex-shrink-0"
               />
-              <div>
-                <h1 className="font-semibold truncate">
+              <div className="min-w-0">
+                <h1 className="font-semibold text-sm sm:text-base truncate leading-tight">
                   {selectedUser?.userName || "User"}
                 </h1>
                 <div className="flex items-center gap-1">
                   <span
-                    className={`w-2 h-2 rounded-full ${
-                      isOnline ? "bg-green-400" : "bg-gray-400"
+                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full flex-shrink-0 ${
+                      isOnline ? "bg-green-400" : "bg-gray-300"
                     }`}
-                  ></span>
-                  <span className="text-xs">
+                  />
+                  <span className="text-[10px] sm:text-xs">
                     {isOnline ? "Online" : "Offline"}
                   </span>
                 </div>
@@ -374,18 +349,18 @@ const Messagebar = ({ sidebarRef }) => {
             </div>
           </div>
 
-          {/* Messages Section */}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-3"
+            className="flex-1 overflow-y-auto p-2 sm:p-3"
           >
             {messages.length === 0 ? (
-              <p className="text-center text-gray-500 mt-10">No messages yet</p>
+              <p className="text-center text-gray-500 mt-10 text-sm sm:text-base">
+                No messages yet
+              </p>
             ) : (
               messages.map((mess, index) => {
                 const time = formatTime(mess.createdAt);
-
                 if (mess.audio) {
                   const audioElement = (
                     <audio
@@ -409,7 +384,6 @@ const Messagebar = ({ sidebarRef }) => {
                     />
                   );
                 }
-
                 return mess.sender === userData._id ? (
                   <SenderMessage
                     key={index}
@@ -437,15 +411,15 @@ const Messagebar = ({ sidebarRef }) => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Image & Audio Preview */}
           {frontendImage && (
-            <div className="flex items-center justify-between p-2 bg-gray-100 mx-3 mb-2 rounded-md">
+            <div className="flex items-center justify-between p-2 bg-gray-100 mx-2 sm:mx-3 mb-1 rounded-md flex-shrink-0">
               <img
                 src={frontendImage}
-                className="h-20 w-20 object-cover rounded-md"
+                className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md"
+                alt="preview"
               />
               <IoMdClose
-                size={25}
+                size={22}
                 className="text-red-500 cursor-pointer"
                 onClick={removeImage}
               />
@@ -453,45 +427,47 @@ const Messagebar = ({ sidebarRef }) => {
           )}
 
           {audioBlob && (
-            <div className="flex items-center justify-between p-2 bg-gray-100 mx-3 mb-2 rounded-md">
-              <audio controls src={URL.createObjectURL(audioBlob)} />
+            <div className="flex items-center justify-between p-2 bg-gray-100 mx-2 sm:mx-3 mb-1 rounded-md flex-shrink-0">
+              <audio
+                controls
+                src={URL.createObjectURL(audioBlob)}
+                className="h-8 w-full max-w-[220px] sm:max-w-xs"
+              />
               <IoMdClose
-                size={25}
-                className="text-red-500 cursor-pointer"
+                size={22}
+                className="text-red-500 cursor-pointer ml-2 flex-shrink-0"
                 onClick={() => setAudioBlob(null)}
               />
             </div>
           )}
 
-          {/* Input + Typing/Recording Indicators */}
-          <div className="relative w-full p-3 bg-white border-t flex flex-col gap-1">
+          <div className="relative w-full px-2 sm:px-3 py-2 sm:py-3 bg-white border-t border-gray-200 flex flex-col gap-1 flex-shrink-0">
             {(isTyping || otherRecording) && (
-              <div className="w-fit inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-gray-700 text-sm">
+              <div className="w-fit inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-gray-700 text-xs sm:text-sm mb-1">
                 {isTyping && (
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounceTyping delay-0"></span>
-                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounceTyping delay-200"></span>
-                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounceTyping delay-400"></span>
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-500 rounded-full animate-bounceTyping delay-0" />
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-500 rounded-full animate-bounceTyping delay-200" />
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-500 rounded-full animate-bounceTyping delay-400" />
                   </div>
                 )}
-
                 {otherRecording && (
-                  <div className="w-fit flex items-center gap-2">
-                    <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-600 rounded-full animate-pulse" />
                     <span className="whitespace-nowrap">Recording…</span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Input row */}
-            <div className="flex items-center gap-3 mt-1">
-              <div
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
                 onClick={() => setShowPicker(!showPicker)}
-                className="emoji-toggle-btn text-xl text-[#189AA7] cursor-pointer"
+                className="emoji-toggle-btn text-xl sm:text-2xl text-[#189AA7] cursor-pointer flex-shrink-0 p-1"
               >
                 <RiEmojiStickerLine />
-              </div>
+              </button>
 
               <input
                 type="file"
@@ -500,12 +476,13 @@ const Messagebar = ({ sidebarRef }) => {
                 ref={image}
                 onChange={handleImage}
               />
-              <div
-                className="text-xl text-[#189AA7] cursor-pointer"
+              <button
+                type="button"
+                className="text-xl sm:text-2xl text-[#189AA7] cursor-pointer flex-shrink-0 p-1"
                 onClick={() => image.current.click()}
               >
                 <IoMdAttach />
-              </div>
+              </button>
 
               <input
                 type="text"
@@ -516,67 +493,72 @@ const Messagebar = ({ sidebarRef }) => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSendMessage(e);
                 }}
-                className="flex-1 px-4 py-2 rounded-full bg-[#e8fdff] outline-none"
+                className="flex-1 min-w-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full bg-[#e8fdff] outline-none text-sm sm:text-base"
               />
 
               {input.trim() || frontendImage || audioBlob ? (
                 <button
                   onClick={handleSendMessage}
-                  className="bg-[#21C4D3] text-white p-2 rounded-full"
+                  className="bg-[#21C4D3] text-white p-2 sm:p-2.5 rounded-full flex-shrink-0 hover:bg-[#189AA7] transition-colors"
                 >
-                  <IoIosSend />
+                  <IoIosSend size={18} />
                 </button>
               ) : (
                 <button
                   onClick={handleVoiceRecord}
-                  className={`text-white p-2 rounded-full ${
-                    isRecording ? "bg-red-600 pulse" : "bg-[#21C4D3]"
+                  className={`text-white p-2 sm:p-2.5 rounded-full flex-shrink-0 transition-colors ${
+                    isRecording
+                      ? "bg-red-600 pulse"
+                      : "bg-[#21C4D3] hover:bg-[#189AA7]"
                   }`}
                 >
-                  <MdOutlineKeyboardVoice />
+                  <MdOutlineKeyboardVoice size={18} />
                 </button>
               )}
 
               {showPicker && (
                 <div
                   ref={emojiPickerRef}
-                  className="absolute bottom-16 left-5 z-50"
+                  className="absolute bottom-14 sm:bottom-16 left-2 sm:left-4 z-50"
+                  style={{ maxWidth: "min(320px, calc(100vw - 16px))" }}
                 >
-                  <EmojiPicker onEmojiClick={OnEmojiClick} />
+                  <EmojiPicker
+                    onEmojiClick={OnEmojiClick}
+                    width="100%"
+                    height={320}
+                  />
                 </div>
               )}
             </div>
           </div>
 
-          {/* Full image preview */}
           {previewImage && (
-            <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
-              <img src={previewImage} className="max-h-[90%]" />
+            <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-3">
+              <img
+                src={previewImage}
+                className="max-h-[88vh] max-w-[95vw] sm:max-h-[90vh] sm:max-w-[90vw] rounded-lg object-contain"
+                alt="preview"
+              />
               <IoMdClose
-                size={30}
-                className="absolute top-5 right-5 text-white cursor-pointer"
+                size={28}
+                className="absolute top-4 right-4 text-white cursor-pointer hover:text-gray-300 transition-colors"
                 onClick={() => setPreviewImage("")}
               />
             </div>
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-center h-full flex-col gap-6 px-4">
-          {/* Logo with animation effect */}
-          <div className="relative">
-            <img
-              src={logo}
-              alt="Talkies Logo"
-              className="w-24 h-24 rounded-full relative z-10"
-            />
-          </div>
-
-          {/* Text Content */}
-          <div className="text-center space-y-3">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-[#189AA7] to-[#0d6873] bg-clip-text text-transparent">
+        <div className="flex items-center justify-center h-full flex-col gap-4 sm:gap-6 px-4">
+          <img
+            src={logo}
+            alt="Talkies Logo"
+            className="w-16 h-16 sm:w-24 sm:h-24 rounded-full"
+          />
+          <div className="text-center space-y-2 sm:space-y-3">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-[#189AA7] to-[#0d6873] bg-clip-text text-transparent">
               Welcome to Talkies
             </h1>
-            <p className="text-gray-500 text-lg font-medium">
+            <p className="text-gray-500 text-sm sm:text-base lg:text-lg font-medium">
               Your own chatting App!
             </p>
           </div>
@@ -584,6 +566,7 @@ const Messagebar = ({ sidebarRef }) => {
       )}
     </div>
   );
-};
+});
 
+Messagebar.displayName = "Messagebar";
 export default Messagebar;

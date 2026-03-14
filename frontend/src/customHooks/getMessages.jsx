@@ -10,24 +10,23 @@ const useMessages = () => {
   const { userData, selectedUser } = useSelector((state) => state.user);
 
   useEffect(() => {
-    // ✅ Don’t run unless both userData and selectedUser exist
     if (!userData || !selectedUser || !selectedUser._id) return;
 
     const fetchMessages = async () => {
       try {
         const res = await axios.get(
           `${ServerUrl}/api/message/get/${selectedUser._id}`,
-          { withCredentials: true }
+          { withCredentials: true },
         );
         dispatch(setMessages(res.data || []));
       } catch (err) {
         console.error("Error fetching messages:", err);
-        dispatch(setMessages([])); // fallback empty
+        dispatch(setMessages([]));
       }
     };
 
     fetchMessages();
-  }, [userData, selectedUser?._id, dispatch]); // ✅ Safer dependency
+  }, [userData, selectedUser?._id, dispatch]);
 
   return messages;
 };
