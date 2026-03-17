@@ -78,6 +78,7 @@ const Profile = () => {
 
   return (
     <div className="h-screen w-full bg-[#e8fdff] flex flex-col overflow-hidden">
+      {/* ── Top Bar ── */}
       <div className="flex items-center px-3 sm:px-4 py-3 sm:py-4 bg-[#21C4D3] shadow-md flex-shrink-0">
         <IoIosArrowRoundBack
           size={26}
@@ -89,7 +90,9 @@ const Profile = () => {
         </h2>
       </div>
 
+      {/* ── Scrollable content ── */}
       <div className="flex-1 flex flex-col items-center overflow-y-auto py-5 sm:py-8 px-4">
+        {/* Profile picture */}
         <div className="flex flex-col items-center mb-5 sm:mb-6">
           <img
             src={frontendImage}
@@ -113,10 +116,12 @@ const Profile = () => {
           />
         </div>
 
+        {/* Form */}
         <form
           onSubmit={handleProfile}
           className="w-full max-w-[95%] sm:max-w-md md:max-w-lg bg-white rounded-2xl shadow-lg p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4 mb-4"
         >
+          {/* Name row */}
           <div
             className="flex flex-col bg-gray-50 rounded-xl p-3 sm:p-4 cursor-pointer hover:bg-[#f0f8ff] transition-colors"
             onClick={() => navigate("/editName")}
@@ -127,6 +132,7 @@ const Profile = () => {
             </span>
           </div>
 
+          {/* About row */}
           <div
             className="flex flex-col bg-gray-50 rounded-xl p-3 sm:p-4 cursor-pointer hover:bg-[#f0f8ff] transition-colors"
             onClick={() => navigate("/editAbout")}
@@ -137,6 +143,7 @@ const Profile = () => {
             </span>
           </div>
 
+          {/* Phone row */}
           <div className="flex flex-col px-3 sm:px-4 py-2">
             <label className="text-gray-400 text-xs sm:text-sm mb-1">
               Phone
@@ -156,6 +163,7 @@ const Profile = () => {
         </form>
       </div>
 
+      {/* ── Preview modal ── */}
       {prevImg && (
         <div
           onClick={() => setPrevImg(false)}

@@ -32,6 +32,7 @@ const NewContact = ({ onClose, afterAdd }) => {
     if (!newContact.password.trim()) return alert("Please fill Password");
 
     try {
+      // ✅ FIX: Sahi API endpoint use karo - newcontact/create
       const res = await axios.post(
         `${ServerUrl}/api/newcontact/create`,
         {
@@ -42,6 +43,7 @@ const NewContact = ({ onClose, afterAdd }) => {
         { withCredentials: true },
       );
 
+      // ✅ FIX: Response handle properly - user field ya direct data
       const userData_res = res.data?.user || res.data;
       if (!userData_res || !userData_res._id) {
         throw new Error("Invalid response from server");

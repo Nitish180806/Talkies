@@ -9,10 +9,11 @@ import UserRouter from "./routes/UserRoute.js";
 import MessageRouter from "./routes/MessageRoute.js";
 import NewContactRouter from "./routes/NewContactRoute.js";
 import ConverSationRoute from "./routes/ConverSationRoute.js";
-import { app, server } from "./socket/Socket.js";
+import { app, server, io } from "./socket/Socket.js";
 import StatusRouter from "./routes/StatusRoute.js";
 
 dotenv.config();
+
 
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
@@ -24,10 +25,9 @@ app.use("/api/user", UserRouter);
 app.use("/api/message", MessageRouter);
 app.use("/api/newcontact", NewContactRouter);
 app.use("/api/conversation", ConverSationRoute);
-app.use("/api/status", StatusRouter);
-
+app.use("/api/status", StatusRouter)
 const port = process.env.PORT || 8001;
 server.listen(port, async () => {
-  await connectMongoDB();
+  await connectMongoDB(); // Ensure DB connected before accepting requests
   console.log(`Server running on http://localhost:${port}`);
 });

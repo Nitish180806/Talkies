@@ -20,14 +20,19 @@ export const getReceiverSocketId = (receiverId) => {
 };
 
 io.on("connection", (socket) => {
+  console.log("✅ New socket connected:", socket.id);
+
   const userId = socket.handshake.query.userId;
 
   if (userId && userId !== "undefined") {
     userSocketMap[userId] = socket.id;
+    console.log(`🟢 User connected: ${userId}`);
+
     io.emit("userOnline", userId);
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   }
 
+  // ----------------- TYPING EVENT -----------------
   socket.on("typing", ({ receiverId, isTyping }) => {
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
@@ -35,6 +40,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ----------------- VOICE RECORDING EVENT -----------------
   socket.on("voiceRecording", ({ receiverId, isRecording }) => {
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
@@ -45,25 +51,31 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ✅ FIX: statusViewed - statusOwnerId bhi forward karo
   socket.on("statusViewed", ({ statusId, statusOwnerId, viewerData }) => {
+    console.log(`👁️ Status ${statusId} viewed by ${viewerData._id}`);
     const ownerSocketId = getReceiverSocketId(statusOwnerId);
     if (ownerSocketId) {
       io.to(ownerSocketId).emit("statusViewUpdate", {
         statusId,
-        statusOwnerId,
+        statusOwnerId, // ✅ FIX: ye field add ki
         viewerData,
       });
     }
   });
 
+  // ✅ FIX: statusLiked - statusOwnerId forward karo
   socket.on(
     "statusLiked",
     ({ statusId, statusOwnerId, likerData, isLiked }) => {
+      console.log(
+        `❤️ Status ${statusId} ${isLiked ? "liked" : "unliked"} by ${likerData._id}`,
+      );
       const ownerSocketId = getReceiverSocketId(statusOwnerId);
       if (ownerSocketId) {
         io.to(ownerSocketId).emit("statusLikeUpdate", {
           statusId,
-          statusOwnerId,
+          statusOwnerId, // ✅ FIX: ye field add ki
           likerData,
           isLiked,
         });
@@ -71,23 +83,30 @@ io.on("connection", (socket) => {
     },
   );
 
+  // When someone deletes a status
   socket.on("statusDeleted", ({ statusId, userId }) => {
+    console.log("🗑️ Status deleted:", statusId);
     io.emit("statusRemoved", { statusId, userId });
   });
 
+  // Handle logout
   socket.on("logout", (userId) => {
     if (userId && userSocketMap[userId]) {
       delete userSocketMap[userId];
       io.emit("userOffline", userId);
       io.emit("getOnlineUsers", Object.keys(userSocketMap));
+      console.log(`🔴 User logged out: ${userId}`);
     }
   });
 
+  // Handle disconnect
   socket.on("disconnect", () => {
+    console.log("❌ Socket disconnected:", socket.id);
     if (userId && userSocketMap[userId]) {
       delete userSocketMap[userId];
       io.emit("userOffline", userId);
       io.emit("getOnlineUsers", Object.keys(userSocketMap));
+      console.log(`🔴 User disconnected: ${userId}`);
     }
   });
 });

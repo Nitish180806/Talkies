@@ -1,3 +1,4 @@
+// components/StatusList.jsx - Fixed Version
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -79,9 +80,12 @@ const StatusList = () => {
         axios.get(`${ServerUrl}/api/status/my`, { withCredentials: true }),
         axios.get(`${ServerUrl}/api/status/all`, { withCredentials: true }),
       ]);
+
       dispatch(setMyStatuses(myRes.data));
       dispatch(setOtherStatuses(othersRes.data));
-    } catch (error) {}
+    } catch (error) {
+      console.error("Error fetching statuses:", error);
+    }
   };
 
   const activeStatuses = otherStatuses.filter(
@@ -91,16 +95,6 @@ const StatusList = () => {
   const hasUnviewedStatus = (userStatuses) => {
     return userStatuses.some((status) => !viewedStatuses.includes(status._id));
   };
-
-  const sortedStatuses = [...activeStatuses].sort((a, b) => {
-    const aUnviewed = hasUnviewedStatus(a.statuses);
-    const bUnviewed = hasUnviewedStatus(b.statuses);
-    if (aUnviewed && !bUnviewed) return -1;
-    if (!aUnviewed && bUnviewed) return 1;
-    const aLatest = new Date(a.statuses[0]?.createdAt || 0);
-    const bLatest = new Date(b.statuses[0]?.createdAt || 0);
-    return bLatest - aLatest;
-  });
 
   const handleMyStatusClick = (e) => {
     if (e.target.closest(".add-status-btn")) {
@@ -157,11 +151,11 @@ const StatusList = () => {
             </span>
           </div>
 
-          {sortedStatuses.length > 0 && (
+          {activeStatuses.length > 0 && (
             <div className="flex-shrink-0 w-px h-10 bg-gray-200"></div>
           )}
 
-          {sortedStatuses.length > 0 && (
+          {activeStatuses.length > 0 && (
             <div className="flex-shrink-0">
               <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Recent Updates
@@ -169,8 +163,8 @@ const StatusList = () => {
             </div>
           )}
 
-          {/* Other Users Statuses — unviewed pehle */}
-          {sortedStatuses.map((userStatus) => {
+          {/* Other Users' Statuses */}
+          {activeStatuses.map((userStatus) => {
             const hasUnviewed = hasUnviewedStatus(userStatus.statuses);
             return (
               <div
@@ -198,6 +192,7 @@ const StatusList = () => {
                   />
                 </div>
 
+                {/* ✅ FIX: userName OR name use karo */}
                 <span className="text-[11px] font-medium text-gray-700 truncate max-w-[56px]">
                   {userStatus.userId.userName ||
                     userStatus.userId.name ||
@@ -207,7 +202,7 @@ const StatusList = () => {
             );
           })}
 
-          {sortedStatuses.length === 0 && (
+          {activeStatuses.length === 0 && (
             <div className="flex-1 py-2 pl-3">
               <p className="text-xs text-gray-400">No updates available</p>
             </div>

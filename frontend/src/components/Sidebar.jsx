@@ -69,6 +69,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
   const handleContextMenu = (e, userId) => {
     e.preventDefault();
     const rect = sidebarRef.current.getBoundingClientRect();
+    // Clamp so menu doesn't go off-screen
     const menuWidth = 160;
     const menuHeight = 56;
     let x = e.clientX - rect.left;
@@ -250,6 +251,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
           className="flex items-center flex-1 min-w-0"
           onClick={onClickHandler}
         >
+          {/* Avatar */}
           <div className="relative flex-shrink-0">
             <img
               src={user.image || dp}
@@ -263,6 +265,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
             />
           </div>
 
+          {/* Info */}
           <div className="ml-2 sm:ml-3 flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center gap-1.5">
               <h2 className="text-gray-800 font-medium text-sm sm:text-base truncate">
@@ -272,6 +275,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
                 <BsPinAngleFill className="text-[#21C4D3] text-xs flex-shrink-0" />
               )}
             </div>
+
             {!isPopup && (
               <div className="flex justify-between items-center mt-0.5">
                 <p className="text-gray-500 text-xs sm:text-sm truncate flex-1 mr-2 max-w-[120px] sm:max-w-[160px] md:max-w-[180px]">
@@ -316,6 +320,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
         selectedUser ? "hidden lg:flex" : "flex"
       } transition-all duration-300 relative overflow-hidden`}
     >
+      {/* ── Header ── */}
       <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-[18px] bg-[#21C4D3] text-white shadow-md flex-shrink-0">
         <div className="flex items-center gap-2">
           <img
@@ -346,6 +351,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
         </div>
       </div>
 
+      {/* ── Search ── */}
       <div className="px-3 sm:px-4 py-2.5 sm:py-4 bg-[#e8fdff] flex-shrink-0">
         <div className="flex items-center bg-white border border-[#21C4D3] rounded-full px-3 sm:px-4 py-2 sm:py-3 gap-2">
           <FiSearch className="text-[#21C4D3] text-base sm:text-lg flex-shrink-0" />
@@ -359,6 +365,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
         </div>
       </div>
 
+      {/* ── Contact list ── */}
       <div className="flex-1 overflow-y-auto bg-[#e8fdff]">
         <StatusList />
         {sortedUsers.length > 0 ? (
@@ -372,6 +379,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
         )}
       </div>
 
+      {/* ── Context menu ── */}
       {contextMenu.show && (
         <div
           ref={contextMenuRef}
@@ -384,17 +392,20 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
           >
             {pinnedChats.includes(contextMenu.userId) ? (
               <>
-                <BsPinAngle className="text-[#21C4D3]" /> Unpin Chat
+                <BsPinAngle className="text-[#21C4D3]" />
+                Unpin Chat
               </>
             ) : (
               <>
-                <BsPinAngleFill className="text-[#21C4D3]" /> Pin Chat
+                <BsPinAngleFill className="text-[#21C4D3]" />
+                Pin Chat
               </>
             )}
           </button>
         </div>
       )}
 
+      {/* ── New chat popup ── */}
       {showNewChat && (
         <div className="absolute inset-0 z-50 flex flex-col bg-[#e8fdff]">
           <div className="flex items-center justify-between px-3 sm:px-4 py-3 sm:py-4 bg-[#21C4D3] text-white shadow-md flex-shrink-0">
@@ -458,6 +469,7 @@ const Sidebar = forwardRef(({ messagebarRef }, ref) => {
         />
       )}
 
+      {/* ── Delete modal ── */}
       {showDeleteModal && deleteTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 w-full max-w-[320px] sm:max-w-sm text-center">

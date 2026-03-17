@@ -1,3 +1,4 @@
+// pages/UserInfo.jsx
 import React, { useEffect, useState } from "react";
 import { IoIosArrowRoundBack } from "react-icons/io";
 import { useNavigate, useParams } from "react-router-dom";
@@ -21,7 +22,7 @@ const UserInfo = () => {
         });
         setUser(res.data);
       } catch (err) {
-        // user not found
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -62,6 +63,7 @@ const UserInfo = () => {
 
   return (
     <div className="flex flex-col h-screen bg-[#e8fdff] overflow-hidden">
+      {/* Header */}
       <div className="px-3 sm:px-4 py-3 sm:py-4 bg-[#21C4D3] text-white shadow-lg flex items-center relative flex-shrink-0">
         <IoIosArrowRoundBack
           size={26}
@@ -73,7 +75,9 @@ const UserInfo = () => {
         </h2>
       </div>
 
+      {/* Scrollable content */}
       <div className="flex-1 flex flex-col items-center overflow-y-auto px-3 sm:px-4 py-5 sm:py-6 md:py-10 gap-4 sm:gap-5">
+        {/* Avatar */}
         <div className="relative">
           <img
             src={user.image || "/default-avatar.png"}
@@ -88,9 +92,13 @@ const UserInfo = () => {
           />
         </div>
 
+        {/* Info card */}
         <div className="w-full max-w-[95%] sm:max-w-md md:max-w-lg bg-white shadow-xl rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 space-y-2.5 sm:space-y-4">
           {[
-            { label: "Name", value: user.name || user.userName },
+            {
+              label: "Name",
+              value: user.name || user.userName,
+            },
             {
               label: "Status",
               value: isOnline ? "🟢 Online" : "⚫ Offline",
@@ -98,7 +106,10 @@ const UserInfo = () => {
                 ? "text-green-500 font-medium"
                 : "text-gray-500",
             },
-            { label: "About", value: user.about || "No about info" },
+            {
+              label: "About",
+              value: user.about || "No about info",
+            },
             {
               label: "Joined",
               value: new Date(user.createdAt).toLocaleDateString(),
@@ -112,7 +123,9 @@ const UserInfo = () => {
                 {row.label}:
               </span>
               <span
-                className={`text-right break-words text-sm sm:text-base max-w-[60%] ${row.valueClass || "text-gray-800"}`}
+                className={`text-right break-words text-sm sm:text-base max-w-[60%] ${
+                  row.valueClass || "text-gray-800"
+                }`}
               >
                 {row.value}
               </span>
@@ -121,6 +134,7 @@ const UserInfo = () => {
         </div>
       </div>
 
+      {/* Preview modal */}
       {previewImage && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
           <img

@@ -12,6 +12,7 @@ import {
 } from "../controllers/StatusController.js";
 
 const StatusRouter = express.Router();
+
 StatusRouter.post("/create", IsAuth, Upload.single("image"), createStatus);
 StatusRouter.get("/my", IsAuth, getMyStatuses);
 StatusRouter.get("/all", IsAuth, getAllStatuses);
@@ -19,4 +20,5 @@ StatusRouter.get("/:statusId", IsAuth, getStatusById);
 StatusRouter.post("/:statusId/view", IsAuth, viewStatus);
 StatusRouter.post("/:statusId/like", IsAuth, likeStatus);
 StatusRouter.delete("/:statusId", IsAuth, deleteStatus);
+
 export default StatusRouter;

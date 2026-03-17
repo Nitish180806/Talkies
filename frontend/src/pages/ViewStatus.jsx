@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+// pages/ViewStatus.jsx
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { IoIosArrowRoundBack } from "react-icons/io";
@@ -37,157 +38,7 @@ const ViewStatus = () => {
     ? userData
     : otherStatuses.find((u) => u.userId._id === userId)?.userId;
 
-  const indexRef = useRef(currentIndex);
-  const statusesRef = useRef(statuses);
-  const isPausedRef = useRef(isPaused);
-  const showViewersRef = useRef(showViewersList);
-  const otherStatusesRef = useRef(otherStatuses);
-  const userIdRef = useRef(userId);
-  const prevNavigationRef = useRef(null); 
-  useEffect(() => {
-    indexRef.current = currentIndex;
-  }, [currentIndex]);
-  useEffect(() => {
-    statusesRef.current = statuses;
-  }, [statuses]);
-  useEffect(() => {
-    isPausedRef.current = isPaused;
-  }, [isPaused]);
-  useEffect(() => {
-    showViewersRef.current = showViewersList;
-  }, [showViewersList]);
-  useEffect(() => {
-    otherStatusesRef.current = otherStatuses;
-  }, [otherStatuses]);
-  useEffect(() => {
-    userIdRef.current = userId;
-  }, [userId]);
-
-  useEffect(() => {
-    const allOtherStatuses = otherStatuses;
-    const currentUserStatuses =
-      allOtherStatuses.find((u) => u.userId._id === userId)?.statuses || [];
-
-    if (
-      prevNavigationRef.current === "prev" &&
-      currentUserStatuses.length > 0
-    ) {
-      setCurrentIndex(currentUserStatuses.length - 1); 
-    } else {
-      setCurrentIndex(0); 
-    }
-    setProgress(0);
-    prevNavigationRef.current = null;
-  }, [userId]);
-
-  const goToNextUser = () => {
-    const allOtherStatuses = otherStatusesRef.current;
-    const currentUserId = userIdRef.current;
-    const currentUserIndex = allOtherStatuses.findIndex(
-      (u) => u.userId._id === currentUserId,
-    );
-    const nextUser = allOtherStatuses
-      .slice(currentUserIndex + 1)
-      .find((u) => u.statuses && u.statuses.length > 0);
-
-    if (nextUser) {
-      navigate(`/status/view/${nextUser.userId._id}`);
-    } else {
-      navigate("/");
-    }
-  };
-
-  const handleNext = () => {
-    const idx = indexRef.current;
-    const total = statusesRef.current.length;
-    if (idx < total - 1) {
-      setProgress(0);
-      setCurrentIndex(idx + 1);
-    } else {
-      if (!isMyStatus) {
-        goToNextUser();
-      } else {
-        navigate("/");
-      }
-    }
-  };
-
-  const goToPrevUser = () => {
-    const allOtherStatuses = otherStatusesRef.current;
-    const currentUserId = userIdRef.current;
-    const currentUserIndex = allOtherStatuses.findIndex(
-      (u) => u.userId._id === currentUserId,
-    );
-    const prevUser = allOtherStatuses
-      .slice(0, currentUserIndex)
-      .reverse()
-      .find((u) => u.statuses && u.statuses.length > 0);
-
-    if (prevUser) {
-      prevNavigationRef.current = "prev"; 
-      navigate(`/status/view/${prevUser.userId._id}`);
-    }
-  };
-
-  const handlePrev = () => {
-    const idx = indexRef.current;
-    if (idx > 0) {
-      setProgress(0);
-      setCurrentIndex(idx - 1);
-    } else {
-      if (!isMyStatus) {
-        goToPrevUser();
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (!currentStatus) return;
-
-    setProgress(0);
-    let tick = 0;
-
-    const interval = setInterval(() => {
-      if (isPausedRef.current || showViewersRef.current) return;
-
-      tick += 1;
-      setProgress(tick);
-
-      if (tick >= 100) {
-        clearInterval(interval);
-        const idx = indexRef.current;
-        const total = statusesRef.current.length;
-        if (idx < total - 1) {
-          setProgress(0);
-          setCurrentIndex(idx + 1);
-        } else {
-          const allOtherStatuses = otherStatusesRef.current;
-          const currentUserId = userIdRef.current;
-          const isMyStatusNow = currentUserId === userData?._id;
-
-          if (!isMyStatusNow) {
-            const currentUserIndex = allOtherStatuses.findIndex(
-              (u) => u.userId._id === currentUserId,
-            );
-            const nextUser = allOtherStatuses
-              .slice(currentUserIndex + 1)
-              .find((u) => u.statuses && u.statuses.length > 0);
-
-            if (nextUser) {
-              navigate(`/status/view/${nextUser.userId._id}`);
-            } else {
-              navigate("/");
-            }
-          } else {
-            navigate("/");
-          }
-        }
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [currentIndex, currentStatus]);
-
+  // Real-time socket listeners
   useEffect(() => {
     if (!socket) return;
     const handleStatusViewUpdate = ({
@@ -217,6 +68,21 @@ const ViewStatus = () => {
     };
   }, [socket, dispatch, userData]);
 
+  // Auto-advance timer
+  useEffect(() => {
+    if (!currentStatus || isPaused || showViewersList) return;
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          handleNext();
+          return 0;
+        }
+        return prev + 1;
+      });
+    }, 50);
+    return () => clearInterval(interval);
+  }, [currentIndex, isPaused, currentStatus, showViewersList]);
+
   // Mark as viewed
   useEffect(() => {
     if (currentStatus && !isMyStatus) markAsViewed(currentStatus._id);
@@ -242,6 +108,22 @@ const ViewStatus = () => {
         });
       }
     } catch (error) {}
+  };
+
+  const handleNext = () => {
+    if (currentIndex < statuses.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+      setProgress(0);
+    } else {
+      navigate("/");
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      setProgress(0);
+    }
   };
 
   const handleLike = async () => {
@@ -402,7 +284,7 @@ const ViewStatus = () => {
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
-        {/* Tap zones */}
+        {/* Navigation tap zones */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1/3 cursor-pointer z-10"
           onClick={handlePrev}
@@ -475,7 +357,7 @@ const ViewStatus = () => {
         </div>
       )}
 
-      {/* Viewers list modal */}
+      {/* Viewers list modal (bottom sheet) */}
       {isMyStatus && showViewersList && (
         <div
           className="absolute inset-0 bg-black/90 z-30 flex flex-col justify-end"
@@ -485,6 +367,7 @@ const ViewStatus = () => {
             className="bg-white/10 backdrop-blur-xl rounded-t-3xl max-h-[75vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Sheet header */}
             <div className="sticky top-0 bg-white/10 backdrop-blur-xl px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-white/20">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="text-base sm:text-xl font-bold">Status Info</h3>
@@ -515,6 +398,7 @@ const ViewStatus = () => {
               </div>
             </div>
 
+            {/* Viewers list */}
             <div className="overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-2">
               <h4 className="text-xs sm:text-sm font-semibold text-gray-300 mb-2 sm:mb-3">
                 Viewed by ({viewsCount})

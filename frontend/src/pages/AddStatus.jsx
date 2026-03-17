@@ -1,3 +1,4 @@
+// pages/AddStatus.jsx
 import React, { useState, useRef } from "react";
 import { IoIosArrowRoundBack, IoMdClose } from "react-icons/io";
 import { FiImage } from "react-icons/fi";

@@ -313,11 +313,13 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
     >
       {selectedUser ? (
         <div className="flex flex-col h-full relative">
+          {/* ── Header ── */}
           <div className="w-full flex-shrink-0 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-4 bg-[#21C4D3] text-white shadow-md">
             <div
               className="flex items-center gap-2 sm:gap-3 cursor-pointer flex-1 min-w-0"
               onClick={handleHeaderClick}
             >
+              {/* Back arrow — mobile only */}
               <IoIosArrowRoundBack
                 size={26}
                 className="cursor-pointer lg:hidden flex-shrink-0"
@@ -349,6 +351,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
             </div>
           </div>
 
+          {/* ── Messages area ── */}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
@@ -411,6 +414,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
             <div ref={chatEndRef} />
           </div>
 
+          {/* ── Image preview strip ── */}
           {frontendImage && (
             <div className="flex items-center justify-between p-2 bg-gray-100 mx-2 sm:mx-3 mb-1 rounded-md flex-shrink-0">
               <img
@@ -426,6 +430,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
             </div>
           )}
 
+          {/* ── Audio preview strip ── */}
           {audioBlob && (
             <div className="flex items-center justify-between p-2 bg-gray-100 mx-2 sm:mx-3 mb-1 rounded-md flex-shrink-0">
               <audio
@@ -441,7 +446,9 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
             </div>
           )}
 
+          {/* ── Input bar ── */}
           <div className="relative w-full px-2 sm:px-3 py-2 sm:py-3 bg-white border-t border-gray-200 flex flex-col gap-1 flex-shrink-0">
+            {/* Typing / recording indicator */}
             {(isTyping || otherRecording) && (
               <div className="w-fit inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-gray-700 text-xs sm:text-sm mb-1">
                 {isTyping && (
@@ -460,7 +467,9 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
               </div>
             )}
 
+            {/* Input row */}
             <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Emoji */}
               <button
                 type="button"
                 onClick={() => setShowPicker(!showPicker)}
@@ -469,6 +478,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
                 <RiEmojiStickerLine />
               </button>
 
+              {/* Attach */}
               <input
                 type="file"
                 hidden
@@ -484,6 +494,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
                 <IoMdAttach />
               </button>
 
+              {/* Text input */}
               <input
                 type="text"
                 value={isRecording ? "" : input}
@@ -496,6 +507,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
                 className="flex-1 min-w-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full bg-[#e8fdff] outline-none text-sm sm:text-base"
               />
 
+              {/* Send / Voice button */}
               {input.trim() || frontendImage || audioBlob ? (
                 <button
                   onClick={handleSendMessage}
@@ -516,6 +528,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
                 </button>
               )}
 
+              {/* Emoji picker popup */}
               {showPicker && (
                 <div
                   ref={emojiPickerRef}
@@ -532,6 +545,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
             </div>
           </div>
 
+          {/* ── Full-screen image preview ── */}
           {previewImage && (
             <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-3">
               <img
@@ -548,6 +562,7 @@ const Messagebar = forwardRef(({ sidebarRef }, ref) => {
           )}
         </div>
       ) : (
+        /* ── Empty state ── */
         <div className="flex items-center justify-center h-full flex-col gap-4 sm:gap-6 px-4">
           <img
             src={logo}

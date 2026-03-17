@@ -1,5 +1,7 @@
+// components/SenderMessage.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { IoMdClose } from "react-icons/io";
+import { IoCheckmark, IoCheckmarkDone } from "react-icons/io5"; // ✅ NEW: Read receipts icons
 
 const SenderMessage = ({ image, message, audio, time, isRead }) => {
   const scroll = useRef();
@@ -18,6 +20,7 @@ const SenderMessage = ({ image, message, audio, time, isRead }) => {
       <div className="flex justify-end m-1 px-1 sm:px-2" ref={scroll}>
         <div className="flex items-end max-w-[75%] sm:max-w-[70%] md:max-w-[60%]">
           <div className="bg-[#189AA7] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg rounded-tr-none flex flex-col gap-1 overflow-hidden">
+            {/* 🖼 Image message */}
             {image && (
               <img
                 onLoad={handleImageScroll}
@@ -27,6 +30,8 @@ const SenderMessage = ({ image, message, audio, time, isRead }) => {
                 className="rounded-lg max-w-[150px] sm:max-w-[200px] md:max-w-[250px] object-cover cursor-zoom-in hover:opacity-90 transition"
               />
             )}
+
+            {/* 🎙 Audio message */}
             {audio && (
               <audio
                 controls
@@ -34,19 +39,25 @@ const SenderMessage = ({ image, message, audio, time, isRead }) => {
                 className="w-full max-w-[200px] sm:max-w-[250px] rounded-lg mt-1"
               />
             )}
+
+            {/* 💬 Text message */}
             {message && (
               <span className="leading-snug break-words text-sm sm:text-base">
                 {message}
               </span>
             )}
+
+            {/* 🕒 Time with Read Receipt */}
             <div className="flex items-center justify-end gap-1">
               {time && (
                 <span className="text-[9px] sm:text-[10px] text-gray-200">
                   {time}
                 </span>
               )}
+              {/* 💙 Simple & Beautiful Status */}
               <div className="flex items-center ml-1">
                 {isRead ? (
+                  // Seen - Filled heart
                   <svg
                     className="w-3 h-3 text-white transition-all hover:scale-110"
                     title="Seen"
@@ -56,6 +67,7 @@ const SenderMessage = ({ image, message, audio, time, isRead }) => {
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                   </svg>
                 ) : (
+                  // Delivered - Outlined heart
                   <svg
                     className="w-3 h-3 text-white transition-all hover:scale-110"
                     title="Delivered"
@@ -73,6 +85,7 @@ const SenderMessage = ({ image, message, audio, time, isRead }) => {
         </div>
       </div>
 
+      {/* ✅ IMAGE PREVIEW MODAL - Responsive */}
       {previewImage && (
         <div
           className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn p-4"
